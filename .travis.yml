@@ -4,4 +4,6 @@ os:
 arch: amd64
 script: make
 before_script: 
+  - sudo apt update -y
+  - sudo apt upgrade -y
   - sudo apt install -y apache2-dev
