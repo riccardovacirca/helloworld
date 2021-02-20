@@ -4,4 +4,4 @@ os:
 arch: amd64
 script: make
 before_script: 
-  - sudo apt install -y apache2 apache2-dev apache2-utils
+  - sudo apt install -y libapr1-dev libaprutil1-dev
