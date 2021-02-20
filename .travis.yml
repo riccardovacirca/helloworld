@@ -2,3 +2,4 @@ language: c
 os:
   -linux
 arch: amd64
+script: make
