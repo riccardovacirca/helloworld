@@ -1,5 +1,7 @@
 language: c
 os:
-  -linux
+  - linux
 arch: amd64
 script: make
+before_script: 
+  - sudo apt install -y apache2 apache2-dev apache2-utils
