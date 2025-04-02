@@ -1,0 +1,7 @@
+*
+!.gitignore
+!helloworld.cpp
+!install.sh
+!LICENSE
+!Makefile
+!README.md
