@@ -1,5 +1,22 @@
 #!/bin/bash
 # ==============================================================================
+# Copyright (C) 2023-2025  Riccardo Vacirca
+# All rights reserved
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see
+# <https://www.gnu.org/licenses/>.
+# ==============================================================================
 if [ -z "$BASH_VERSION" ]; then exec /bin/bash "$0" "$@"; fi
 # ==============================================================================
 if [ -f /.dockerenv ]; then
@@ -32,15 +49,15 @@ SERVICE_NAME=$(basename "$PWD")
 SERVICE_AUTHOR=""
 SERVICE_DESCRIPTION="C/C++ microservice"
 SERVICE_URI=""
-SERVICE_CMD="/usr/bin/service"
-SERVICE_BIN="bin/service"
+SERVICE_CMD="/usr/bin/${SERVICE_NAME}"
+SERVICE_BIN="bin/${SERVICE_NAME}"
 SERVICE_HOST="0.0.0.0"
 SERVICE_PORT=8090
 SERVICE_TLS_PORT=8092
 SERVICE_WEB_PORT=8094
 SERVICE_WS_PORT=8096
-SERVICE_LOG="/var/log/service.log"
-SERVICE_PID_FILE="/run/service.pid"
+SERVICE_LOG="/var/log/${SERVICE_NAME}.log"
+SERVICE_PID_FILE="/run/${SERVICE_NAME}.pid"
 SERVICE_JWT_KEY="jwt-key-secret"
 SERVICE_NETWORK="${SERVICE_NAME}-net"
 SERVICE_DOCKER_IMAGE="ubuntu:latest"
@@ -70,6 +87,8 @@ GITHUB_MAIL=""
 GITHUB_TOKEN=""
 BENCH_CONCURRENCE=1
 BENCH_TIME=10s
+MICROSERVICE_GITHUB_REPO="https://github.com/riccardovacirca/microservice.git"
+MICROSERVICE_DIR="microservice"
 MONGOOSE_GITHUB_REPO="https://github.com/riccardovacirca/mongoose.git"
 MONGOOSE_DIR="mongoose"
 UNITY_GITHUB_REPO="https://github.com/riccardovacirca/Unity.git"
@@ -91,7 +110,6 @@ if [ "$option" = "help" ]; then
   echo "    --purge      Esegue il purge dell'installazione"
   echo "    --doc        Genera la documentazione con Doxygen"
   echo "    --gh-repo    Genera il repo Github per il progetto"
-  echo "         Chiede conferma ad ogni passo"
   echo "    --test       Installa l'ambiente con una configurazione di test"
   echo "    --help       Mostra questo messaggio"
   echo ""
@@ -147,6 +165,8 @@ DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD}"
 DB_PASSWORD="${DB_PASSWORD}"
 DB_SCHEMA="${DB_SCHEMA}"
 DB_DATA="${DB_DATA}"
+MICROSERVICE_GITHUB_REPO="${MICROSERVICE_GITHUB_REPO}"
+MICROSERVICE_DIR="${MICROSERVICE_DIR}"
 MONGOOSE_GITHUB_REPO="${MONGOOSE_GITHUB_REPO}"
 MONGOOSE_DIR="${MONGOOSE_DIR}"
 UNITY_GITHUB_REPO="${UNITY_GITHUB_REPO}"
@@ -200,6 +220,8 @@ DB_SCHEMA="${DB_SCHEMA}"
 DB_DATA="${DB_DATA}"
 BENCH_CONCURRENCE=$BENCH_CONCURRENCE
 BENCH_TIME=$BENCH_TIME
+MICROSERVICE_GITHUB_REPO="${MICROSERVICE_GITHUB_REPO}"
+MICROSERVICE_DIR="${MICROSERVICE_DIR}"
 MONGOOSE_GITHUB_REPO="${MONGOOSE_GITHUB_REPO}"
 MONGOOSE_DIR="${MONGOOSE_DIR}"
 UNITY_GITHUB_REPO="${UNITY_GITHUB_REPO}"
@@ -227,17 +249,21 @@ source .env
 # PURGE
 # ==============================================================================
 if [ "$option" = "purge" ]; then
+  
   STEP="n"; while true; do
   # ----------------------------------------------------------------------------
   read -p "Eseguire il purge dell'installazione? (y/N/s=stop) " STEP;
   # ----------------------------------------------------------------------------
   case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done;
   if [ "${STEP}" != "y" ]; then exit 0; fi;
+  
   if [ "$EUID" -ne 0 ]; then
     echo "Esegui lo script con sudo o come root."
     exit 1
   fi
+  
   echo "Eseguo il purge dell'installazione..."
+
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Eseguire un backup del file .env? (y/N/s=stop) " STEP;
@@ -246,6 +272,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     cp .env env && echo "Backup del file .env eseguito."
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere CPP-JWT? (y/N/s=stop) " STEP;
@@ -254,6 +281,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf cppjwt && echo "CPP-JWT rimosso."
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere Mongoose? (y/N/s=stop) " STEP;
@@ -262,6 +290,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf mongoose && echo "Mongoose rimosso."
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere Unity? (y/N/s=stop) " STEP;
@@ -270,6 +299,16 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf unity && echo "Unity rimosso."
   fi
+
+  STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
+  # ----------------------------------------------------------------------------
+  read -p "Rimuovere microservice? (y/N/s=stop) " STEP;
+  # ----------------------------------------------------------------------------
+  case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
+  if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
+    rm -rf microservice && echo "microservice rimosso."
+  fi
+
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere la diretory bin/? (y/N/s=stop) " STEP;
@@ -278,6 +317,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf bin && echo "Directory bin rimossa."
   fi
+
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere la directory tmp/? (y/N/s=stop) " STEP;
@@ -286,6 +326,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf tmp && echo "Directory tmp rimossa."
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Rimuovere la directory .github? (y/N/s=stop) " STEP;
@@ -294,6 +335,7 @@ if [ "$option" = "purge" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     rm -rf .github && echo "Directory .github rimossa."
   fi
+
   if [ -n "$(docker ps -a -q -f name=${SERVICE_NAME})" ]; then
     STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
     # --------------------------------------------------------------------------
@@ -306,6 +348,7 @@ if [ "$option" = "purge" ]; then
       && echo "Container $SERVICE_NAME rimosso."
     fi
   fi
+  
   if [ -n "$(docker ps -a -q -f name=${DB_CONTAINER})" ]; then
     STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
     # --------------------------------------------------------------------------
@@ -318,6 +361,7 @@ if [ "$option" = "purge" ]; then
       && echo "Container $DB_CONTAINER rimosso."
     fi
   fi
+  # ============================================================================
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Eseguire 'system prune -a --volumes'? (y/N/s=stop) " STEP;
@@ -327,6 +371,7 @@ if [ "$option" = "purge" ]; then
     docker system prune -a --volumes \
     && echo "System prune eseguito."
   fi
+
   echo "Purge dell'installazione completato."
   exit 0
 fi
@@ -334,6 +379,7 @@ fi
 # DOC
 # ==============================================================================
 if [ "$option" = "doc" ]; then
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Creare la directory 'doc'? (y/N/s=stop) " STEP;
@@ -342,10 +388,12 @@ if [ "$option" = "doc" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     mkdir -p doc && echo "Directory doc creata."
   fi
+  
   if [ ! -d "doc" ]; then
     echo "Directory doc non creata. Termino."
     exit 1
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Creare il Doxyfile? (y/N/s=stop) " STEP;
@@ -354,12 +402,13 @@ if [ "$option" = "doc" ]; then
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     cat > Doxyfile << EOF
 PROJECT_NAME=${SERVICE_NAME}
-INPUT=microservice.c microservice.h main.c service.c service.h
+INPUT=${SERVICE_NAME}.cpp
 OUTPUT_DIRECTORY=doc
 GENERATE_HTML=YES
 GENERATE_LATEX=NO
 EOF
     echo "Doxyfile creato."
+    
     STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
     # --------------------------------------------------------------------------
     read -p "Eseguire doxygen? (y/N/s=stop) " STEP;
@@ -370,7 +419,9 @@ EOF
       cd ${SERVICE_WORKING_DIR} && doxygen Doxyfile && rm Doxyfile" \
       && echo "Doxygen eseguito."
     fi
+  
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Creare il file index.html? (y/N/s=stop) " STEP;
@@ -393,6 +444,7 @@ EOF
 EOF
     echo "File index.html creato."
   fi
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Creare il file doc/CNAME? (y/N/s=stop) " STEP;
@@ -405,6 +457,7 @@ EOF
       echo "www.example.com" > doc/CNAME && echo "File CNAME creato."
     fi
   fi
+  
   exit 0
 fi
 # ==============================================================================
@@ -944,71 +997,69 @@ if [ "$option" = "database" ]; then
   if [ -z "$DB_INSTALLED" ]; then
     if [ "$DB_SERVER" = "mariadb" ]; then
       if [ -n "$DB_PASSWORD" ]; then
-        if [ -f "$DB_SCHEMA" ]; then
-          ROOT_PASSWORD_OPT=""
-          if [ -n "$DB_ROOT_PASSWORD" ]; then
-            ROOT_PASSWORD_OPT="-p${DB_ROOT_PASSWORD}"
-          fi
+        ROOT_PASSWORD_OPT=""
+        if [ -n "$DB_ROOT_PASSWORD" ]; then
+          ROOT_PASSWORD_OPT="-p${DB_ROOT_PASSWORD}"
+        fi
+        STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
+        # ----------------------------------------------------------------------
+        read -p "Creare user e database del servizio? (y/N/s=stop) " STEP;
+        # ----------------------------------------------------------------------
+        case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
+        if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
+          docker exec -i $DB_CONTAINER bash -c "\
+            mysql -h 127.0.0.1 -uroot ${ROOT_PASSWORD_OPT} -e \"
+            CREATE DATABASE IF NOT EXISTS $SERVICE_NAME;
+            CREATE USER IF NOT EXISTS '$SERVICE_NAME'@'%' \
+            IDENTIFIED BY '$DB_PASSWORD';
+            GRANT ALL PRIVILEGES ON $SERVICE_NAME.* \
+            TO '$SERVICE_NAME'@'%' WITH GRANT OPTION;
+            FLUSH PRIVILEGES;\" && \
+            echo \"User e database del servizio creati.\" && exit 0 || \
+            echo \"Errori durante la creazione di user e database\" && exit 1"
+          if [ $? != 0 ]; then exit 1; fi;
+        fi
+        if [ -n "${DB_SCHEMA}" ] && [ -f "${DB_SCHEMA}" ]; then
           STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
           # --------------------------------------------------------------------
-          read -p "Creare user e database del servizio? (y/N/s=stop) " STEP;
+          read -p "Creare il DB schema del servizio? (y/N/s=stop) " STEP;
           # --------------------------------------------------------------------
           case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
           if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
-            docker exec -i $DB_CONTAINER bash -c "\
-              mysql -h 127.0.0.1 -uroot ${ROOT_PASSWORD_OPT} -e \"
-              CREATE DATABASE IF NOT EXISTS $SERVICE_NAME;
-              CREATE USER IF NOT EXISTS '$SERVICE_NAME'@'%' \
-              IDENTIFIED BY '$DB_PASSWORD';
-              GRANT ALL PRIVILEGES ON $SERVICE_NAME.* \
-              TO '$SERVICE_NAME'@'%' WITH GRANT OPTION;
-              FLUSH PRIVILEGES;\" && \
-              echo \"User e database del servizio creati.\" && exit 0 || \
-              echo \"Errori durante la creazione di user e database\" && exit 1"
-            if [ $? != 0 ]; then exit 1; fi;
-          fi
-          if [ -n "${DB_SCHEMA}" ] && [ -f "${DB_SCHEMA}" ]; then
-            STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-            # ------------------------------------------------------------------
-            read -p "Creare il DB schema del servizio? (y/N/s=stop) " STEP;
-            # ------------------------------------------------------------------
-            case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
-            if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
-              cat $DB_SCHEMA | \
-              docker exec -i $DB_CONTAINER mysql -h 127.0.0.1 -u$SERVICE_NAME \
-              -p$DB_PASSWORD $SERVICE_NAME  2>/dev/null \
-              && echo "Schema del servizio creato."
-              if [ -n "${DB_DATA}" ] && [ -f "${DB_DATA}" ]; then
-                STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-                # --------------------------------------------------------------
-                read -p "Inserire i dati del DB? (y/N/s=stop) " STEP;
-                # --------------------------------------------------------------
-                case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
-                if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
-                  cat $DB_DATA | \
-                  docker exec -i $DB_CONTAINER mysql -h 127.0.0.1 \
-                  -u$SERVICE_NAME -p$DB_PASSWORD $SERVICE_NAME  2>/dev/null \
-                  && echo "Dati del servizio inseriti."
-                fi
+            cat $DB_SCHEMA | \
+            docker exec -i $DB_CONTAINER mysql -h 127.0.0.1 -u$SERVICE_NAME \
+            -p$DB_PASSWORD $SERVICE_NAME  2>/dev/null \
+            && echo "Schema del servizio creato."
+            if [ -n "${DB_DATA}" ] && [ -f "${DB_DATA}" ]; then
+              STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
+              # ----------------------------------------------------------------
+              read -p "Inserire i dati del DB? (y/N/s=stop) " STEP;
+              # ----------------------------------------------------------------
+              case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
+              if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
+                cat $DB_DATA | \
+                docker exec -i $DB_CONTAINER mysql -h 127.0.0.1 \
+                -u$SERVICE_NAME -p$DB_PASSWORD $SERVICE_NAME  2>/dev/null \
+                && echo "Dati del servizio inseriti."
               fi
             fi
           fi
-          DB_CONN_S=""
-          if [ -n "${DB_HOST}" ] && [ -n "${DB_PORT}" ] && \
-            [ -n "${DB_PASSWORD}" ] && [ -n "${SERVICE_NAME}" ]; then
-            STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-            # ------------------------------------------------------------------
-            read -p "Settare la DB connection in .env? (y/N/s=stop) " STEP;
-            # ------------------------------------------------------------------
-            case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
-            if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
-              DB_CONN_S="host=${DB_HOST},port=${DB_PORT},"
-              DB_CONN_S+="user=${SERVICE_NAME},pass=${DB_PASSWORD},"
-              DB_CONN_S+="dbname=${SERVICE_NAME}"
-              echo "DB_CONN_S=\"${DB_CONN_S}\"" >> .env
-              echo "DB_INSTALLED=\"y\"" >> .env
-              echo "Stringa di connessione al db server settata."
-            fi
+        fi
+        DB_CONN_S=""
+        if [ -n "${DB_HOST}" ] && [ -n "${DB_PORT}" ] && \
+          [ -n "${DB_PASSWORD}" ] && [ -n "${SERVICE_NAME}" ]; then
+          STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
+          # --------------------------------------------------------------------
+          read -p "Settare la DB connection in .env? (y/N/s=stop) " STEP;
+          # --------------------------------------------------------------------
+          case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
+          if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
+            DB_CONN_S="host=${DB_HOST},port=${DB_PORT},"
+            DB_CONN_S+="user=${SERVICE_NAME},pass=${DB_PASSWORD},"
+            DB_CONN_S+="dbname=${SERVICE_NAME}"
+            echo "DB_CONN_S=\"${DB_CONN_S}\"" >> .env
+            echo "DB_INSTALLED=\"y\"" >> .env
+            echo "Stringa di connessione al db server settata."
           fi
         fi
       fi
@@ -1046,6 +1097,7 @@ if [ "${STEPS}" = "y" ]; then ./install.sh --network;
 else ./install.sh --network --yes; fi; if [ $? -eq 1 ]; then exit 1; fi;
 # ------------------------------------------------------------------------------
 if [ -z "$(docker ps -a --format '{{.Names}}' | grep "^${SERVICE_NAME}$")" ]; then
+  
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   # ----------------------------------------------------------------------------
   read -p "Installare l'immagine ${SERVICE_DOCKER_IMAGE}? (y/N/s=stop) " STEP;
@@ -1055,10 +1107,9 @@ if [ -z "$(docker ps -a --format '{{.Names}}' | grep "^${SERVICE_NAME}$")" ]; th
     docker pull $SERVICE_DOCKER_IMAGE \
     && echo "Immagine $SERVICE_DOCKER_IMAGE installata."
   fi
+  # ----------------------------------------------------------------------------
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-  # ----------------------------------------------------------------------------
   read -p "Eseguire il run del container dev? (y/N/s=stop) " STEP;
-  # ----------------------------------------------------------------------------
   case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     LOCAL_VOLUME=$(pwd)
@@ -1072,23 +1123,23 @@ if [ -z "$(docker ps -a --format '{{.Names}}' | grep "^${SERVICE_NAME}$")" ]; th
     -p $SERVICE_WS_PORT:2388 $SERVICE_DOCKER_IMAGE \
     && echo "Run del container $SERVICE_NAME eseguito."
   fi
+  # ----------------------------------------------------------------------------
 else
   if [ -z "$(docker ps --format '{{.Names}}' | grep "^${SERVICE_NAME}$")" ]; then
+    # --------------------------------------------------------------------------
     STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-    # --------------------------------------------------------------------------
     read -p "Eseguire lo start del container dev? (y/N/s=stop) " STEP;
-    # --------------------------------------------------------------------------
     case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
     if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
       docker start $SERVICE_NAME \
       && echo "Start del container $SERVICE_NAME eseguito."
     fi
+    # --------------------------------------------------------------------------
   fi
 fi
+# ------------------------------------------------------------------------------
 STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-# ------------------------------------------------------------------------------
 read -p "Installare e configurare il timezone? (y/N/s=stop) " STEP;
-# ------------------------------------------------------------------------------
 case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
 if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   docker exec -i $SERVICE_NAME bash -c "\
@@ -1099,10 +1150,9 @@ if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   dpkg-reconfigure -f noninteractive tzdata" \
   && echo "Timezone installato."
 fi
+# ------------------------------------------------------------------------------
 STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-# ------------------------------------------------------------------------------
 read -p "Installare le dipendenze di sviluppo? (y/N/s=stop) " STEP;
-# ------------------------------------------------------------------------------
 case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
 if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   docker exec -i $SERVICE_NAME bash -c "\
@@ -1110,64 +1160,80 @@ if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   $SERVICE_DEV_DEPENDENCIES && apt-get clean && rm -rf /var/lib/apt/lists/*" \
   && echo "Dipendenze di sviluppo installate."
 fi
+# ------------------------------------------------------------------------------
 if [ ! -d "${MONGOOSE_DIR}" ]; then
+  # ----------------------------------------------------------------------------
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-  # ----------------------------------------------------------------------------
   read -p "Installare mongoose? (y/N/s=stop) " STEP;
-  # ----------------------------------------------------------------------------
   case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     docker exec -i $SERVICE_NAME bash -c "\
     cd $SERVICE_WORKING_DIR \
-    && git clone ${MONGOOSE_GITHUB_REPO} ${MONGOOSE_DIR}" \
+    && git clone ${MONGOOSE_GITHUB_REPO} ${MONGOOSE_DIR} \
+    && rm -rf ${MONGOOSE_DIR}/.git" \
     && echo "Mongoose installato."
   fi
+  # ----------------------------------------------------------------------------
 fi
-if [ ! -d "${UNITY_DIR}" ]; then
+if [ ! -d "${MICROSERVICE_DIR}" ]; then
+  # ----------------------------------------------------------------------------
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-  # ----------------------------------------------------------------------------
-  read -p "Installare unity? (y/N/s=stop) " STEP;
-  # ----------------------------------------------------------------------------
+  read -p "Installare microservice? (y/N/s=stop) " STEP;
   case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     docker exec -i $SERVICE_NAME bash -c "\
     cd $SERVICE_WORKING_DIR \
-    && git clone ${UNITY_GITHUB_REPO} ${UNITY_DIR}" \
-    && echo "Unity installato."
-
+    && git clone ${MICROSERVICE_GITHUB_REPO} ${MICROSERVICE_DIR}" \
+    && echo "microservice installato."
   fi
+  # ----------------------------------------------------------------------------
 fi
-if [ ! -d "${CPPJWT_DIR}" ]; then
+if [ ! -d "${UNITY_DIR}" ]; then
+  # ----------------------------------------------------------------------------
   STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
+  read -p "Installare unity? (y/N/s=stop) " STEP;
+  case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
+  if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
+    docker exec -i $SERVICE_NAME bash -c "\
+    cd $SERVICE_WORKING_DIR \
+    && git clone ${UNITY_GITHUB_REPO} ${UNITY_DIR} \
+    && rm -rf ${UNITY_DIR}/.git" \
+    && echo "Unity installato."
+  fi
   # ----------------------------------------------------------------------------
+fi
+
+if [ ! -d "${CPPJWT_DIR}" ]; then
+  # ----------------------------------------------------------------------------
+  STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
   read -p "Installare cppjwt? (y/N/s=stop) " STEP;
-  # ----------------------------------------------------------------------------
   case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
   if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     docker exec -i $SERVICE_NAME bash -c "\
     cd $SERVICE_WORKING_DIR \
     && git clone ${CPPJWT_GITHUB_REPO} ${CPPJWT_DIR} \
+    && rm -rf ${CPPJWT_DIR}/.git \
     && cd cppjwt && mkdir -p build && cd build && cmake .. \
     && cmake --build . -j" \
     && echo "CPP-JWT installato."
   fi
+  # ----------------------------------------------------------------------------
 fi
+# ------------------------------------------------------------------------------
 STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-# ------------------------------------------------------------------------------
 read -p "Create 'clear' alias? (y/N/s=stop) " STEP;
-# ------------------------------------------------------------------------------
 case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
 if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   docker exec -i $SERVICE_NAME bash -c "\
   echo \"alias cls='clear'\" >> /etc/bash.bashrc && source /etc/bash.bashrc" \
   && echo "Alias del comando 'clear' creato."
 fi
+# ------------------------------------------------------------------------------
 if [ -d ".git" ]; then
   if [ -n "$GITHUB_USER" ] && [ -n "$GITHUB_MAIL" ]; then
+    # --------------------------------------------------------------------------
     STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-    # --------------------------------------------------------------------------
     read -p "Configurare git? (y/N/s=stop) " STEP;
-    # --------------------------------------------------------------------------
     case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
     if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
       docker exec -i $SERVICE_NAME bash -c "\
@@ -1178,12 +1244,12 @@ if [ -d ".git" ]; then
       && git config user.name && git config user.email" \
       && echo "Git configurato."
     fi
+    # --------------------------------------------------------------------------
   fi
 fi
+# ------------------------------------------------------------------------------
 STEP="y"; if [ "${STEPS}" = "y" ]; then while true; do
-# --------------------------------------------------------------------------
 read -p "Configurare locale? (y/N/s=stop) " STEP;
-# --------------------------------------------------------------------------
 case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
 if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   docker exec -i $SERVICE_NAME bash -c "\
@@ -1194,5 +1260,6 @@ if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
     update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANGUAGE=en_US.UTF-8; \
     locale;"
 fi
+# ------------------------------------------------------------------------------
 echo "Installazione completata."
 exit 0
