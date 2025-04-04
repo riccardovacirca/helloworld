@@ -27,6 +27,14 @@ extern "C" int HelloWorldRequestHandler(m_service_t *s) {
   return 200;
 }
 
+extern "C" int JWTAuthMiddleware(m_service_t *s) {
+  return 1;
+}
+
+extern "C" void m_middlewares(m_service_t *s) {
+  m_middleware(s, M_HTTP_GET, "/api", JWTAuthMiddleware);
+}
+
 extern "C" void m_routes(m_service_t *s) {
-  m_route(s, "GET", "/api/helloworld", HelloWorldRequestHandler);
+  m_route(s, M_HTTP_GET, "/api/helloworld", HelloWorldRequestHandler);
 }
