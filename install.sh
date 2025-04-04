@@ -68,7 +68,7 @@ autoconf libtool-bin libexpat1-dev cmake libssl-dev libmariadb-dev libpq-dev \
 libsqlite3-dev unixodbc-dev libapr1-dev libaprutil1-dev libaprutil1-dbd-mysql \
 libaprutil1-dbd-pgsql libaprutil1-dbd-sqlite3 libjson-c-dev libjwt-dev siege \
 valgrind doxygen graphviz nlohmann-json3-dev libgtest-dev apt-file docker.io \
-ca-certificates mysql-client"
+gdb ca-certificates mysql-client"
 SERVICE_DEPENDENCIES="curl libssl3 libmariadb3 libpq5 libsqlite3-0 unixodbc \
 libjson-c5 libapr1 libaprutil1 libaprutil1-dbd-mysql libaprutil1-dbd-pgsql \
 libaprutil1-dbd-sqlite3 libjwt2 wget gnupg"
@@ -1253,9 +1253,7 @@ read -p "Configurare locale? (y/N/s=stop) " STEP;
 case "$STEP" in "" | "y" | "n" | "s") break ;; esac; done; fi;
 if [ "${STEP}" = "s" ]; then exit 1; fi; if [ "${STEP}" = "y" ]; then
   docker exec -i $SERVICE_NAME bash -c "\
-    if ! dpkg -l | grep -q "language-pack-en"; then \
-      apt-get install -y language-pack-en; \
-    fi; \
+    apt-get install -y language-pack-en; \
     locale-gen en_US.UTF-8; \
     update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANGUAGE=en_US.UTF-8; \
     locale;"
