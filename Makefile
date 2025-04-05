@@ -27,7 +27,7 @@ LIBS:=
 LDFLAGS:=-lapr-1 -laprutil-1
 SRC:=helloworld
 
-all: mongoose.o $(SRC).o microservice.o
+all: mongoose.o microservice.o
 	@mkdir -p bin
 	$(CXX) -o bin/$(SRC) $^ $(LDFLAGS) -lstdc++
 	@$(MAKE) -s clean

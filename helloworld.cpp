@@ -18,8 +18,11 @@
  * ****************************************************************************/
 
 #include "microservice.h"
+#include "stdio.h"
 
 extern "C" int HelloWorldRequestHandler(m_service_t *s) {
+  m_log_service(s, M_LOG_DEBUG, "Eseguo HelloWorldRequestHandler");
+  printf("Eseguo HelloWorldRequestHandler-------\n");
   apr_pool_t *mp = m_service_pool(s, 0);
   m_str_t *msg = m_str(mp, "Hello, World!!!", 15);
   m_http_response_header_set(s, "Content-Type", "text/plain");
@@ -28,13 +31,19 @@ extern "C" int HelloWorldRequestHandler(m_service_t *s) {
 }
 
 extern "C" int JWTAuthMiddleware(m_service_t *s) {
+  printf("Eseguo JWTAuthMiddleware--------------\n");
+  m_log_service(s, M_LOG_DEBUG, "Eseguo JWTAuthMiddleware");
   return 1;
 }
 
 extern "C" void m_middlewares(m_service_t *s) {
-  m_middleware(s, M_HTTP_GET, "/api", JWTAuthMiddleware);
+  m_log_service(s, M_LOG_DEBUG, "Eseguo i middleware");
+  printf("Eseguo i middleware---------\n");
+  m_middleware(s, M_HTTP_GET, "/api/", 5, JWTAuthMiddleware);
 }
 
 extern "C" void m_routes(m_service_t *s) {
+  m_log_service(s, M_LOG_DEBUG, "Eseguo i request handler");
+  printf("Eseguo i request handler-------\n");
   m_route(s, M_HTTP_GET, "/api/helloworld", HelloWorldRequestHandler);
 }
