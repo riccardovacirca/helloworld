@@ -24,7 +24,7 @@ CXXFLAGS:=-std=c++11 -g -DM_DEBUG
 INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt \
 	-I/usr/include -I/usr/include/apr-1.0
 LIBS:=
-LDFLAGS:=-lapr-1 -laprutil-1
+LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
 SRC:=mongoose.o fs.o microservice.o
 NAME:=helloworld
 
