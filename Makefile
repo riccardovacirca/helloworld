@@ -19,13 +19,14 @@
 
 CC:=clang
 CXX:=clang++
-CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
+CFLAGS:=-std=gnu11 -g -DM_DEBUG 
+#-DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
 INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt \
 	-I/usr/include -I/usr/include/apr-1.0
 LIBS:=
 LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
-SRC:=mongoose.o fs.o microservice.o
+SRC:=mongoose.o server.o
 NAME:=helloworld
 
 all: $(SRC)
@@ -39,7 +40,7 @@ mongoose.o: mongoose.c
 $(NAME).o: $(NAME).cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-microservice.o: microservice.c
+server.o: server.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c microservice/$< -o $@
 
 fs.o: fs.c
@@ -49,6 +50,12 @@ run:
 	@bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
+
+
+#  run:
+# 	@bin/$(NAME)
+
+
 
 debug:
 	gdb bin/$(NAME) core
@@ -96,5 +103,5 @@ webroot-pack:
 	fi
 
 .PHONY: all mongoose.o mongoose.c $(NAME).o $(NAME).c \
-				microservice.o microservice.c fs.o fs.c run debug clean clean-all \
+				server.o server.c fs.o fs.c run debug clean clean-all \
 				webroot webroot-pack
