@@ -1,5 +1,5 @@
 # ##############################################################################
-# Copyright (C) 2023-2025  Riccardo Vacirca
+# Copyright (C) 2023-2025 Riccardo Vacirca
 # All rights reserved
 #
 # This program is free software; you can redistribute it and/or
@@ -19,14 +19,13 @@
 
 CC:=clang
 CXX:=clang++
-CFLAGS:=-std=gnu11 -g -DM_DEBUG 
-#-DMG_ENABLE_PACKED_FS=1 -DM_FS
+CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
 INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt \
 	-I/usr/include -I/usr/include/apr-1.0
 LIBS:=
 LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
-SRC:=mongoose.o server.o
+SRC:=mongoose.o fs.o server.o
 NAME:=helloworld
 
 all: $(SRC)
@@ -51,6 +50,8 @@ run:
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
 
+cli:
+	clang -I/usr/include/apr-1.0 -o pipecli microservice/pipecli.c -lapr-1
 
 #  run:
 # 	@bin/$(NAME)
