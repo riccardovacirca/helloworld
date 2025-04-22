@@ -46,17 +46,15 @@ fs.o: fs.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 run:
-	@bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" \
-	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
+	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" \
+	-l "/var/log/$(NAME).log" -s 10 -n "/tmp/helloworld_pipein" -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
 
 cli:
-	clang -I/usr/include/apr-1.0 -o pipecli microservice/pipecli.c -lapr-1
+	clang -std=gnu11 -DM_LIB -g -I./mongoose -I./microservice -I/usr/include/apr-1.0 mongoose/mongoose.c microservice/server.c microservice/writer.c -o writer -lapr-1 -laprutil-1 -ljson-c
 
 #  run:
 # 	@bin/$(NAME)
-
-
 
 debug:
 	gdb bin/$(NAME) core

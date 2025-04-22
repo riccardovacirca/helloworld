@@ -6,4 +6,5 @@
 !Makefile
 !README.md
 !.vscode
+!.vscode/*
 !fs.c

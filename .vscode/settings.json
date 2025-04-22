@@ -1,0 +1,16 @@
+{
+  "files.associations": {
+    "*.ts": "javascript",
+    "chrono": "c",
+    "array": "c",
+    "bitset": "c",
+    "string_view": "c",
+    "format": "c",
+    "initializer_list": "c",
+    "ranges": "c",
+    "span": "c",
+    "valarray": "c",
+    "apr_general.h": "c",
+    "apr_file_io.h": "c"
+  }
+}
