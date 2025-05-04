@@ -1,5 +1,4 @@
-/* *****************************************************************************
- * Copyright (C) 2023-2025  Riccardo Vacirca
+/* Copyright (C) 2023-2025  Riccardo Vacirca
  * All rights reserved
  *
  * This program is free software; you can redistribute it and/or
@@ -15,57 +14,58 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see
  * <https://www.gnu.org/licenses/>.
- * ****************************************************************************/
+*/
 
-#include "microservice.h"
 #include "stdio.h"
+
+#include "apr.h"
+#include "apr_pools.h"
+#include "apr_strings.h"
+#include "apr_tables.h"
 #include "apr_hash.h"
+#include "microservice.h"
+#include "json-c/json.h"
 
-extern "C" int JWTAuthMiddleware(m_service_t *s) {
-  return 1;
+extern "C" int m_rpc_stub_sum(m_service_t *svc, const char *uri)
+{ return m_rpc_send(
+    svc, uri, "sum_result", "{\"id\":1002,\"method\":\"sum\",\"params\":[2,4]}"
+  );
 }
 
-extern "C" void GetUser(m_service_t *svc) {
-  apr_pool_t *mp = m_service_pool(svc);
-  apr_hash_t *data = apr_hash_make(mp);
-  m_str_t *user_id = m_service_request_get(svc, "user_id");
-  apr_hash_set(data, "id", APR_HASH_KEY_STRING, user_id);
-  int rv = m_ws_get(svc, svc->ws_conn, "GetUserById", &data);
-}
-
-extern "C" int HelloWorldRequestHandler(m_service_t *s) {
-  apr_pool_t *mp = m_service_pool(s, 0);
-  m_str_t *msg = m_str(mp, "Hello, World!!!", 15);
-  m_http_response_header_set(s, "Content-Type", "text/plain");
-  m_http_response_buffer_set(s, msg, m_slen(msg));
+extern "C" int GetStatusRequestHandler(m_service_t *svc) {
+  apr_pool_t *mp = m_service_pool_get(svc);
+  if (!mp) {
+    return 500;
+  }
+  m_str_t *sum_res = m_service_req_extra_get(svc, "sum_result");
+  if (sum_res) {
+    printf("SUM++: %s\n", m_sbuf(sum_res));
+  }
+  struct json_object *jobj = json_object_new_object();
+  const char *message = "It Works!!!";
+  json_object_object_add(jobj, "message", json_object_new_string(message));
+  const char *json_string = json_object_to_json_string(jobj);
+  char *res = apr_psprintf(mp, M_SUCCESS_FMT, json_string);
+  m_str_t *msg = m_str(mp, res, strlen(res));
+  if (!msg) {
+    return 500;
+  }
+  m_response_header_set(svc, "Content-Type", "application/json");
+  m_response_buffer_set(svc, msg, m_slen(msg));
+  m_response_type_set(svc, M_RESPONE_TP_STRING);
+  json_object_put(jobj);
   return 200;
 }
 
-extern "C" void m_middlewares(m_service_t *s) {
-  m_middleware(s, M_HTTP_GET, "/api/", 5, JWTAuthMiddleware);
+extern "C" void m_rpc_routes(m_service_t *svc, void *ctx)
+{ m_rpc_route(svc, ctx, M_HTTP_GET, "/api/status", "ws://localhost:2380/ws", m_rpc_stub_sum);
+  return;
 }
 
-
-// m_ws_services esegue ogni m_ws_service definita con i relativi parametri.
-// viene eseguita 2 volte.
-// ogni funzione m_ws_service invocata viene eseguita 2 volte
-extern "C" void m_ws_routes(m_service_t *svc) {
-  // Prima esecuzione:
-  //    - Apre una connessione verso ws://192.168.1.10:8090
-  //    - Crea un identificativo univoco per una connessione ws
-  //      usando una combinazione di metodo e url come chiave
-  //    - Associa la connessione all'identificativo univoco in una hashtable
-  // Seconda esecuzione:
-  //    - m_ws_service viene eseguita nel request handler prima di lanciare
-  //      il thread separato, dopo che è stato terminato il parsing dei
-  //      parametri della request
-  //    - Genera la chiave usando una combinazione di metodo e url
-  //    - Prova ad estrarre dalla hashtable la connessione associata alla chiave
-  //    - Se esiste setta la connessione nella struct m_service_t e invoca
-  //      la funzione utente (es. GetUser) passandole m_service_t
-  m_ws_route(svc, M_HTTP_GET, "/api/helloworld", "ws://192.168.1.10:8090", GetUser);
+extern "C" void m_middlewares(m_service_t *svc)
+{ return;
 }
 
-extern "C" void m_routes(m_service_t *s) {
-  m_route(s, M_HTTP_GET, "/api/helloworld", HelloWorldRequestHandler);
+extern "C" void m_routes(m_service_t *s)
+{ m_route(s, M_HTTP_GET, "/api/status", GetStatusRequestHandler);
 }

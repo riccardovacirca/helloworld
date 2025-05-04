@@ -21,12 +21,11 @@ CC:=clang
 CXX:=clang++
 CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
-INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt \
-	-I/usr/include -I/usr/include/apr-1.0
+INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt -I/usr/include -I/usr/include/apr-1.0
 LIBS:=
 LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
-SRC:=mongoose.o fs.o server.o
 NAME:=helloworld
+SRC:=mongoose.o fs.o $(NAME).o microservice.o
 
 all: $(SRC)
 	@mkdir -p bin
@@ -39,22 +38,16 @@ mongoose.o: mongoose.c
 $(NAME).o: $(NAME).cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-server.o: server.c
+microservice.o: microservice.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c microservice/$< -o $@
 
 fs.o: fs.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 run:
-	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" \
+	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" -t "1000" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -n "/tmp/helloworld_pipein" -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
-
-cli:
-	clang -std=gnu11 -DM_LIB -g -I./mongoose -I./microservice -I/usr/include/apr-1.0 mongoose/mongoose.c microservice/server.c microservice/writer.c -o writer -lapr-1 -laprutil-1 -ljson-c
-
-#  run:
-# 	@bin/$(NAME)
 
 debug:
 	gdb bin/$(NAME) core
@@ -102,5 +95,5 @@ webroot-pack:
 	fi
 
 .PHONY: all mongoose.o mongoose.c $(NAME).o $(NAME).c \
-				server.o server.c fs.o fs.c run debug clean clean-all \
+				microservice.o microservice.c fs.o fs.c run debug clean clean-all \
 				webroot webroot-pack
