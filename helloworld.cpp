@@ -27,9 +27,8 @@
 #include "json-c/json.h"
 
 extern "C" int m_rpc_stub_sum(m_service_t *svc, const char *uri)
-{ return m_rpc_send(
-    svc, uri, "sum_result", "{\"id\":1002,\"method\":\"sum\",\"params\":[2,4]}"
-  );
+{ char rpc_message[] = "{\"id\":1002,\"method\":\"sum\",\"params\":[2,4]}";
+  return m_rpc_send(svc, uri, "sum_result", rpc_message);
 }
 
 extern "C" int GetStatusRequestHandler(m_service_t *svc) {
@@ -59,13 +58,8 @@ extern "C" int GetStatusRequestHandler(m_service_t *svc) {
 
 extern "C" void m_rpc_routes(m_service_t *svc, void *ctx)
 { m_rpc_route(svc, ctx, M_HTTP_GET, "/api/status", "ws://localhost:2380/ws", m_rpc_stub_sum);
-  return;
 }
 
-extern "C" void m_middlewares(m_service_t *svc)
-{ return;
-}
-
-extern "C" void m_routes(m_service_t *s)
-{ m_route(s, M_HTTP_GET, "/api/status", GetStatusRequestHandler);
+extern "C" void m_routes(m_service_t *svc)
+{ m_route(svc, M_HTTP_GET, "/api/status", GetStatusRequestHandler);
 }
