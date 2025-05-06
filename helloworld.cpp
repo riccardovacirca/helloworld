@@ -26,13 +26,13 @@
 #include "microservice.h"
 #include "json-c/json.h"
 
-extern "C" int m_rpc_stub_sum(m_service_t *svc, const char *uri)
+extern "C" int SumRPC_Stub(m_service_t *svc, const char *uri)
 { char rpc_message[] = "{\"id\":1002,\"method\":\"sum\",\"params\":[2,4]}";
   return m_rpc_send(svc, uri, "sum_result", rpc_message);
 }
 
-extern "C" int GetStatusRequestHandler(m_service_t *svc) {
-  apr_pool_t *mp = m_service_pool_get(svc);
+extern "C" int GetStatusRequestHandler(m_service_t *svc)
+{ apr_pool_t *mp = m_service_pool_get(svc);
   if (!mp) {
     return 500;
   }
@@ -56,8 +56,8 @@ extern "C" int GetStatusRequestHandler(m_service_t *svc) {
   return 200;
 }
 
-extern "C" void m_rpc_routes(m_service_t *svc, void *ctx)
-{ m_rpc_route(svc, ctx, M_HTTP_GET, "/api/status", "ws://localhost:2380/ws", m_rpc_stub_sum);
+extern "C" void m_rpc_routes(m_service_t *svc)
+{ m_rpc_route(svc, M_HTTP_GET, "/api/status", "ws://localhost:2380/ws", SumRPC_Stub);
 }
 
 extern "C" void m_routes(m_service_t *svc)
