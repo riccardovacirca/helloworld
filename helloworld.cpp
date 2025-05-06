@@ -32,11 +32,8 @@ extern "C" int SumRPC_Stub(m_service_t *svc, const char *uri)
 }
 
 extern "C" int GetStatusRequestHandler(m_service_t *svc)
-{ apr_pool_t *mp = m_service_pool_get(svc);
-  if (!mp) {
-    return 500;
-  }
-  m_str_t *sum_res = m_service_req_extra_get(svc, "sum_result");
+{ 
+  m_str_t *sum_res = (m_str_t*)apr_hash_get(svc->request->extras, "sum_result", APR_HASH_KEY_STRING);
   if (sum_res) {
     printf("SUM++: %s\n", m_sbuf(sum_res));
   }
@@ -44,8 +41,8 @@ extern "C" int GetStatusRequestHandler(m_service_t *svc)
   const char *message = "It Works!!!";
   json_object_object_add(jobj, "message", json_object_new_string(message));
   const char *json_string = json_object_to_json_string(jobj);
-  char *res = apr_psprintf(mp, M_SUCCESS_FMT, json_string);
-  m_str_t *msg = m_str(mp, res, strlen(res));
+  char *res = apr_psprintf(svc->pool, M_SUCCESS_FMT, json_string);
+  m_str_t *msg = m_str(svc->pool, res, strlen(res));
   if (!msg) {
     return 500;
   }
