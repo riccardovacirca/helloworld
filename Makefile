@@ -21,9 +21,9 @@ CC:=clang
 CXX:=clang++
 CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
-INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I./cppjwt -I/usr/include -I/usr/include/apr-1.0
+INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I/usr/include -I/usr/include/apr-1.0
 LIBS:=
-LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
+LDFLAGS:=-lapr-1 -laprutil-1
 NAME:=helloworld
 SRC:=mongoose.o fs.o $(NAME).o microservice.o
 
@@ -95,5 +95,5 @@ webroot-pack:
 	fi
 
 .PHONY: all mongoose.o mongoose.c $(NAME).o $(NAME).c \
-				microservice.o microservice.c fs.o fs.c run debug clean clean-all \
-				webroot webroot-pack
+				microservice.o microservice.c fs.o fs.c \
+				run debug clean clean-all webroot webroot-pack
