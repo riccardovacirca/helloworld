@@ -1,4 +1,3 @@
-# ##############################################################################
 # Copyright (C) 2023-2025 Riccardo Vacirca
 # All rights reserved
 #
@@ -15,22 +14,27 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see
 # <https://www.gnu.org/licenses/>.
-# ##############################################################################
 
 CC:=clang
 CXX:=clang++
 CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
-INCLUDES:=-I. -I./mongoose -I./microservice -I./unity -I/usr/include -I/usr/include/apr-1.0
+INCLUDES:=-I. -I./mongoose -I./microservice -I./microservice/microtools -I./unity -I/usr/include -I/usr/include/apr-1.0
 LIBS:=
-LDFLAGS:=-lapr-1 -laprutil-1 -ljson-c
-NAME:=helloworld
-SRC:=mongoose.o fs.o m_json.o $(NAME).o microservice.o
+LDFLAGS:=-lapr-1 -laprutil-1
 
-all: $(SRC)
-	@mkdir -p bin
-	$(CXX) -o bin/$(NAME) $^ $(LDFLAGS) -lstdc++
+NAME:=helloworld
+LIBNAME:=microtools
+LIB_PATH:=./microservice/microtools
+
+MAIN_OBJS:=mongoose.o fs.o $(NAME).o microservice.o
+
+all: $(NAME)
 	@$(MAKE) -s clean
+
+$(NAME): $(MAIN_OBJS)
+	@mkdir -p bin
+	$(CXX) -o bin/$(NAME) $(MAIN_OBJS) -L./microservice/microtools -l$(LIBNAME) $(LDFLAGS) -lstdc++
 
 mongoose.o: mongoose.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c mongoose/$< -o $@
@@ -44,10 +48,8 @@ microservice.o: microservice.c
 fs.o: fs.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-m_json.o: m_json.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c microservice/$< -o $@
-
 run:
+	LD_LIBRARY_PATH=$(LIB_PATH):$LD_LIBRARY_PATH \
 	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" -t "1000" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
