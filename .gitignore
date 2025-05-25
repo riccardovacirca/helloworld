@@ -8,3 +8,5 @@
 !.vscode
 !.vscode/*
 !fs.c
+!testpdf.cpp
+!testpdf.pdf
