@@ -190,8 +190,8 @@ static const struct packed_file {
   size_t size;
   time_t mtime;
 } packed_files[] = {
-  {"/fs/microtools.css.gz", v1, sizeof(v1), 1748184834},
-  {"/fs/microtools.js.gz", v2, sizeof(v2), 1748184834},
+  {"/fs/microtools.css.gz", v1, sizeof(v1), 1748186728},
+  {"/fs/microtools.js.gz", v2, sizeof(v2), 1748186728},
   {NULL, NULL, 0, 0}
 };
 
