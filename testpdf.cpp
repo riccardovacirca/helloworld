@@ -343,18 +343,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
-// Makefile per PoDoFo 0.9.8:
-/*
-CXX = g++
-CXXFLAGS = -std=c++11 -Wall -O2
-LIBS = -lpodofo
-
-pdf_signature: testpdf.cpp
-	$(CXX) $(CXXFLAGS) -o pdf_signature testpdf.cpp $(LIBS)
-
-clean:
-	rm -f pdf_signature
-
-.PHONY: clean
-*/
