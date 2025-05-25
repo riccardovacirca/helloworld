@@ -20,21 +20,17 @@ CXX:=clang++
 CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
 CXXFLAGS:=-std=c++11 -g -DM_DEBUG
 INCLUDES:=-I. -I./mongoose -I./microservice -I./microservice/microtools -I./unity -I/usr/include -I/usr/include/apr-1.0
-LIBS:=
 LDFLAGS:=-lapr-1 -laprutil-1
 
 NAME:=helloworld
-LIBNAME:=microtools
-LIB_PATH:=./microservice/microtools
-
-MAIN_OBJS:=mongoose.o fs.o $(NAME).o microservice.o
+OBJS:=mongoose.o fs.o $(NAME).o microservice.o
 
 all: $(NAME)
 	@$(MAKE) -s clean
 
-$(NAME): $(MAIN_OBJS)
+$(NAME): $(OBJS)
 	@mkdir -p bin
-	$(CXX) -o bin/$(NAME) $(MAIN_OBJS) -L./microservice/microtools -l$(LIBNAME) $(LDFLAGS) -lstdc++
+	$(CXX) -o bin/$(NAME) $(OBJS) -L./microtools -lmicrotools $(LDFLAGS) -lstdc++
 
 mongoose.o: mongoose.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c mongoose/$< -o $@
@@ -48,11 +44,19 @@ microservice.o: microservice.c
 fs.o: fs.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
+fs.c:
+	mkdir -p ./bin && rm -rf /tmp/fs && mkdir -p /tmp/fs; \
+	gzip -c /$(NAME)/microtools/microtools.js > /tmp/fs/microtools.js.gz; \
+	gzip -c /$(NAME)/microtools/microtools.css > /tmp/fs/microtools.css.gz; \
+	clang -o /$(NAME)/bin/pack /$(NAME)/mongoose/test/pack.c && \
+	cd /tmp && /$(NAME)/bin/pack fs/* > /$(NAME)/fs.c && \
+	rm -rf fs && cd /$(NAME) && rm /$(NAME)/bin/pack
+
 run:
-	LD_LIBRARY_PATH=$(LIB_PATH):$LD_LIBRARY_PATH \
+	LD_LIBRARY_PATH=./microtools:$LD_LIBRARY_PATH \
 	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" -t "1000" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
-	-D "host=mariadb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
+	-D "host=mariadb,port=3306,user=$(NAME),pass=$(NAME),dbname=$(NAME)"
 
 debug:
 	gdb bin/$(NAME) core
@@ -63,42 +67,5 @@ clean:
 clean-all: clean
 	@rm -rf bin/$(NAME) core
 
-webroot:
-	mkdir -p webroot
-	curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
-	apt-get install -y nodejs
-	npm create vite webroot --template svelte
-	@echo "import { defineConfig } from 'vite'" > webroot/vite.config.ts
-	@echo "import { svelte } from '@sveltejs/vite-plugin-svelte'" >> webroot/vite.config.ts
-	@echo "export default defineConfig({" >> webroot/vite.config.ts
-	@echo "  plugins: [svelte()]," >> webroot/vite.config.ts
-	@echo "  build: {" >> webroot/vite.config.ts
-	@echo "    outDir: './dist'," >> webroot/vite.config.ts
-	@echo "    emptyOutDir: true," >> webroot/vite.config.ts
-	@echo "    assetsDir: './'" >> webroot/vite.config.ts
-	@echo "  }," >> webroot/vite.config.ts
-	@echo "  server: {" >> webroot/vite.config.ts
-	@echo "    host: '0.0.0.0'," >> webroot/vite.config.ts
-	@echo "    port: $(WEB_PORT)" >> webroot/vite.config.ts
-	@echo "  }" >> webroot/vite.config.ts
-	@echo "})" >> webroot/vite.config.ts
-
-webroot-pack:
-	@if [ -d "webroot/dist" ]; then \
-		if [ ! -f "webroot/.disabled" ]; then \
-			mkdir -p ./bin && rm -rf /tmp/fs && mkdir -p /tmp/fs; \
-			FS_FILES=$$(find webroot/dist -type f); \
-			for file in $$FS_FILES; do \
-				dir_structure=$$(dirname "$$file" | sed 's|webroot/dist|/tmp/fs|'); \
-				mkdir -p "$$dir_structure"; \
-				gzip -c "$$file" > "$$dir_structure/$$(basename "$$file").gz"; \
-			done; \
-			clang -o /$(NAME)/bin/pack /$(NAME)/mongoose/test/pack.c && \
-			cd /tmp && /$(NAME)/bin/pack fs/* > /$(NAME)/fs.c && \
-			rm -rf fs && cd /$(NAME) && rm /$(NAME)/bin/pack; \
-		fi; \
-	fi
-
 .PHONY: all mongoose.o mongoose.c $(NAME).o $(NAME).c \
-				microservice.o microservice.c fs.o fs.c m_json.o m_json.c \
-				run debug clean clean-all webroot webroot-pack
+				microservice.o microservice.c fs.o fs.c run debug clean clean-all
