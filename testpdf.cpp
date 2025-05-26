@@ -1,345 +1,156 @@
 #include <podofo/podofo.h>
 #include <iostream>
 #include <string>
-#include <vector>
-#include <algorithm>
+#include <sstream>
+#include <cctype>
 
-using namespace PoDoFo;
-
-// Struttura per memorizzare informazioni sul testo trovato
-struct TextInfo {
-    std::string text;
-    int pageNum;
-    double x, y;
-};
-
-// Funzione per normalizzare il testo (rimuove spazi extra, converte in lowercase)
-std::string normalizeText(const std::string& text) {
-    std::string normalized = text;
-    // Rimuovi spazi multipli
-    std::string::iterator new_end = std::unique(normalized.begin(), normalized.end(),
-        [](char lhs, char rhs) { return (lhs == rhs) && (lhs == ' '); });
-    normalized.erase(new_end, normalized.end());
-    
-    // Trim spazi iniziali e finali
-    normalized.erase(0, normalized.find_first_not_of(" \t\n\r"));
-    normalized.erase(normalized.find_last_not_of(" \t\n\r") + 1);
-    
-    // Converti in lowercase per ricerca case-insensitive
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
-    
-    return normalized;
+/**
+ * Normalizza una stringa applicando le seguenti trasformazioni:
+ * 1. Converti tutto in minuscolo
+ * 2. Sostituisci sequenze di whitespace con un singolo spazio
+ * 3. Trim degli spazi all'inizio e alla fine
+ * 
+ * @param text La stringa da normalizzare (passata per riferimento const)
+ * @return La stringa normalizzata, o stringa vuota se composta solo da spazi
+ */
+std::string normalize(const std::string& text) {
+  std::string result;  // Buffer per il risultato
+  bool space = false;  // Flag per tracciare spazi consecutivi
+  // Itera su ogni carattere della stringa input
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    // Converti il carattere in minuscolo (sicuro per UTF-8 con cast)
+    char c = static_cast<char>(std::tolower(text[i]));
+    // Gestione whitespace:
+    if (std::isspace(static_cast<unsigned char>(c))) {
+      // Aggiungi solo uno spazio se non è preceduto da un altro spazio
+      if (!space) {
+        result += ' ';
+        space = true;  // Segnala che abbiamo aggiunto uno spazio
+      }
+    } else {
+      // Aggiungi il carattere non-whitespace e resetta il flag
+      result += c;
+      space = false;
+    }
+  }
+  // Trim degli spazi iniziali/finali:
+  std::size_t start = result.find_first_not_of(' ');  // Primo non-spazio
+  std::size_t end = result.find_last_not_of(' ');     // Ultimo non-spazio
+  // Se la stringa è tutta spazi, ritorna stringa vuota
+  if (start == std::string::npos) return "";
+  // Estrai la sottostringa senza spazi estremi
+  return result.substr(start, end - start + 1);
 }
 
-// Funzione per cercare testo in modo più robusto
-bool searchTextInPage(PdfPage* page, int pageNum, const std::string& searchString, 
-                     std::vector<TextInfo>& foundTexts, bool debugMode = false) {
-    
-    std::vector<std::string> pageTexts;
-    std::string concatenatedText;
-    bool found = false;
-    
-    try {
-        PdfContentsTokenizer tokenizer(page);
-        const char* pszKeyword = nullptr;
-        PdfVariant var;
-        EPdfContentsType type;
-        
-        double currentX = 0, currentY = 0;
-        
-        if (debugMode) {
-            std::cout << "\n=== Debug Pagina " << pageNum + 1 << " ===" << std::endl;
-        }
-        
-        int textCount = 0;
-        int keywordCount = 0;
-        int otherCount = 0;
-        
-        while (tokenizer.ReadNext(type, pszKeyword, var)) {
-            // Debug completo di tutti i tipi di contenuto
-            if (debugMode) {
-                switch(type) {
-                    case ePdfContentsType_Keyword:
-                        keywordCount++;
-                        if (pszKeyword) {
-                            std::string keyword(pszKeyword);
-                            // Mostra solo alcuni keyword interessanti
-                            if (keyword == "Tj" || keyword == "TJ" || keyword == "'" || keyword == "\"" ||
-                                keyword == "Td" || keyword == "TD" || keyword == "Tm") {
-                                std::cout << "Keyword: " << keyword << std::endl;
-                            }
-                        }
-                        break;
-                    case ePdfContentsType_Variant:
-                        if (var.IsString()) {
-                            textCount++;
-                            std::string text = var.GetString().GetString();
-                            std::cout << "TESTO[" << textCount << "]: '" << text << "' (len=" << text.length() << ")" << std::endl;
-                        } else if (var.IsNumber()) {
-                            // Non stampare tutti i numeri, sono troppi
-                        } else if (var.IsArray()) {
-                            std::cout << "Array con " << var.GetArray().size() << " elementi" << std::endl;
-                        } else {
-                            otherCount++;
-                            std::cout << "Altro tipo variant" << std::endl;
-                        }
-                        break;
-                    default:
-                        otherCount++;
-                        break;
-                }
+/**
+ * Cerca un testo specifico all'interno dei contenuti testuali di una pagina PDF.
+ * 
+ * @param page Puntatore alla pagina PDF da analizzare
+ * @param searchText Testo da cercare (case-insensitive e con normalizzazione spazi)
+ * @return true se il testo viene trovato, false altrimenti o in caso di errore
+ */
+bool findTextInPage(PoDoFo::PdfPage* page, const std::string& searchText) {
+  try {
+    // 1. Inizializzazione tokenizer per analizzare i contenuti della pagina
+    PoDoFo::PdfContentsTokenizer tokenizer(page);
+    std::ostringstream oss;  // Buffer per accumulare il testo estratto
+    // Variabili per l'iterazione sui token
+    const char* keyword = 0;  // Puntatore a keyword PDF (non usato in questo caso)
+    PoDoFo::PdfVariant variant;  // Variante PDF (contiene i dati effettivi)
+    PoDoFo::EPdfContentsType type;  // Tipo di token corrente
+    // 2. Estrazione iterativa dei contenuti
+    while (tokenizer.ReadNext(type, keyword, variant)) {
+      if (type == PoDoFo::ePdfContentsType_Variant) {
+        // Gestione stringhe dirette
+        if (variant.IsString()) {
+          oss << variant.GetString().GetString() << " ";
+        } 
+        // Gestione array (può contenere stringhe o altri elementi)
+        else if (variant.IsArray()) {
+          PoDoFo::PdfArray arr = variant.GetArray();
+          for (std::size_t i = 0; i < arr.size(); ++i) {
+            if (arr[i].IsString()) {
+              oss << arr[i].GetString().GetString();
             }
-            
-            // Cerca stringhe di testo
-            if (type == ePdfContentsType_Variant && var.IsString()) {
-                std::string text = var.GetString().GetString();
-                
-                if (!text.empty()) {
-                    pageTexts.push_back(text);
-                    concatenatedText += text + " ";
-                    
-                    // Ricerca case-insensitive sulla stringa singola
-                    std::string normalizedText = normalizeText(text);
-                    std::string normalizedSearch = normalizeText(searchString);
-                    
-                    if (normalizedText.find(normalizedSearch) != std::string::npos) {
-                        TextInfo info;
-                        info.text = text;
-                        info.pageNum = pageNum;
-                        info.x = currentX;
-                        info.y = currentY;
-                        foundTexts.push_back(info);
-                        found = true;
-                        
-                        if (debugMode) {
-                            std::cout << "*** MATCH TROVATO: '" << text << "' ***" << std::endl;
-                        }
-                    }
-                }
-            }
-            
-            // Gestisci anche array che potrebbero contenere testo (come TJ)
-            if (type == ePdfContentsType_Variant && var.IsArray()) {
-                PdfArray textArray = var.GetArray();
-                std::string arrayText = "";
-                
-                for (size_t i = 0; i < textArray.size(); i++) {
-                    if (textArray[i].IsString()) {
-                        arrayText += textArray[i].GetString().GetString();
-                    }
-                }
-                
-                if (!arrayText.empty()) {
-                    pageTexts.push_back(arrayText);
-                    concatenatedText += arrayText + " ";
-                    
-                    if (debugMode) {
-                        std::cout << "TESTO da Array: '" << arrayText << "'" << std::endl;
-                    }
-                    
-                    std::string normalizedText = normalizeText(arrayText);
-                    std::string normalizedSearch = normalizeText(searchString);
-                    
-                    if (normalizedText.find(normalizedSearch) != std::string::npos) {
-                        TextInfo info;
-                        info.text = arrayText;
-                        info.pageNum = pageNum;
-                        info.x = currentX;
-                        info.y = currentY;
-                        foundTexts.push_back(info);
-                        found = true;
-                        
-                        if (debugMode) {
-                            std::cout << "*** MATCH TROVATO in Array: '" << arrayText << "' ***" << std::endl;
-                        }
-                    }
-                }
-            }
+          }
+          oss << " ";  // Aggiunge spazio dopo l'array
         }
-        
-        // Ricerca anche nel testo concatenato (per stringhe che attraversano più elementi)
-        std::string normalizedConcatenated = normalizeText(concatenatedText);
-        std::string normalizedSearch = normalizeText(searchString);
-        
-        if (!found && normalizedConcatenated.find(normalizedSearch) != std::string::npos) {
-            TextInfo info;
-            info.text = concatenatedText;
-            info.pageNum = pageNum;
-            info.x = 0;
-            info.y = 0;
-            foundTexts.push_back(info);
-            found = true;
-            
-            if (debugMode) {
-                std::cout << "*** MATCH nel testo concatenato ***" << std::endl;
-            }
-        }
-        
-        if (debugMode) {
-            std::cout << "=== STATISTICHE PAGINA " << pageNum + 1 << " ===" << std::endl;
-            std::cout << "Keywords trovate: " << keywordCount << std::endl;
-            std::cout << "Stringhe di testo trovate: " << textCount << std::endl;
-            std::cout << "Altri elementi: " << otherCount << std::endl;
-            std::cout << "Testo concatenato: '" << concatenatedText << "'" << std::endl;
-            std::cout << "Testo normalizzato: '" << normalizedConcatenated << "'" << std::endl;
-            std::cout << "Ricerca normalizzata: '" << normalizedSearch << "'" << std::endl;
-            std::cout << "Numero elementi di testo: " << pageTexts.size() << std::endl;
-            
-            if (textCount == 0) {
-                std::cout << "⚠️  ATTENZIONE: Nessun testo trovato in questa pagina!" << std::endl;
-                std::cout << "   Possibili cause:" << std::endl;
-                std::cout << "   - Il testo è convertito in immagini" << std::endl;
-                std::cout << "   - Il PDF usa font incorporati non standard" << std::endl;
-                std::cout << "   - Il testo è codificato in modo particolare" << std::endl;
-            }
-        }
-        
-    } catch (const PdfError& e) {
-        if (debugMode) {
-            std::cerr << "Errore durante il parsing della pagina " << pageNum + 1 
-                      << ": " << e.what() << std::endl;
-        }
+      }
+      // Nota: I token di tipo keyword (ePdfContentsType_Keyword) vengono ignorati
     }
-    
-    return found;
+    // 3. Normalizzazione e ricerca del testo
+    // - Normalizza sia il testo estratto che la search string
+    // - Confronto case-insensitive e con spazi uniformati
+    return normalize(oss.str()).find(normalize(searchText)) != std::string::npos;
+  } catch (const PoDoFo::PdfError&) {
+    // Gestione silenziosa degli errori (pagine senza contenuti o corrotte)
+    return false;
+  }
+}
+
+void addSignatureField(PoDoFo::PdfPage* page, PoDoFo::PdfMemDocument* doc, const std::string& fieldName) {
+  PoDoFo::PdfRect pageSize = page->GetPageSize();
+  PoDoFo::PdfRect fieldRect(pageSize.GetWidth() - 200, 50, 150, 40);
+  PoDoFo::PdfPushButton* field = new PoDoFo::PdfPushButton(page, fieldRect, doc);
+  PoDoFo::PdfObject* fieldObj = field->GetFieldObject();
+  fieldObj->GetDictionary().AddKey("FT", PoDoFo::PdfName("Sig"));
+  fieldObj->GetDictionary().AddKey("T", PoDoFo::PdfString(fieldName));
+  PoDoFo::PdfAcroForm* acroForm = doc->GetAcroForm(true);
+  PoDoFo::PdfArray fields;
+  if (acroForm->GetObject()->GetDictionary().HasKey("Fields")) {
+    fields = acroForm->GetObject()->GetDictionary().GetKey("Fields")->GetArray();
+  }
+  fields.push_back(fieldObj->Reference());
+  acroForm->GetObject()->GetDictionary().AddKey("Fields", fields);
+  PoDoFo::PdfAnnotation* annotation = field->GetWidgetAnnotation();
+  if (annotation) {
+    PoDoFo::PdfArray border;
+    border.push_back(PoDoFo::PdfVariant(0L));
+    border.push_back(PoDoFo::PdfVariant(0L));
+    border.push_back(PoDoFo::PdfVariant(1L));
+    annotation->GetObject()->GetDictionary().AddKey("Border", border);
+  }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 4 || argc > 5) {
-        std::cerr << "Uso: " << argv[0] << " <file_pdf> <stringa_da_cercare> <nome_campo_firma> [debug]" << std::endl;
-        std::cerr << "Aggiungi 'debug' come quarto parametro per informazioni dettagliate" << std::endl;
-        return 1;
+  if (argc != 4) {
+    std::cout << "Uso: " << argv[0] << " <pdf_file> <search_text> <field_name>\n";
+    return 1;
+  }
+  std::string inputFile = argv[1];
+  std::string searchText = argv[2];
+  std::string fieldName = argv[3];
+  std::string::size_type dot = inputFile.find_last_of('.');
+  std::string outputFile = (dot == std::string::npos)
+    ? inputFile + "_signed.pdf"
+    : inputFile.substr(0, dot) + "_signed.pdf";
+  try {
+    PoDoFo::PdfMemDocument doc;
+    doc.Load(inputFile.c_str());
+    std::cout << "Cercando '" << searchText << "' in " << doc.GetPageCount() << " pagine...\n";
+    bool found = false;
+    for (int i = 0; i < doc.GetPageCount() && !found; ++i) {
+      PoDoFo::PdfPage* page = doc.GetPage(i);
+      if (findTextInPage(page, searchText)) {
+        std::cout << "Testo trovato a pagina " << (i + 1) << ". Aggiungendo campo firma...\n";
+        addSignatureField(page, &doc, fieldName);
+        found = true;
+      }
     }
-
-    std::string inputFile = argv[1];
-    std::string searchString = argv[2];
-    std::string fieldName = argv[3];
-    bool debugMode = (argc == 5 && std::string(argv[4]) == "debug");
-    std::string outputFile = inputFile.substr(0, inputFile.find_last_of('.')) + "_signed.pdf";
-
-    std::cout << "Apertura file: " << inputFile << std::endl;
-    std::cout << "Ricerca stringa: '" << searchString << "'" << std::endl;
-    std::cout << "Nome campo firma: " << fieldName << std::endl;
-    if (debugMode) {
-        std::cout << "Modalità debug attiva" << std::endl;
+    if (!found) {
+      std::cout << "Testo '" << searchText << "' non trovato nel documento.\n";
+      return 1;
     }
-
-    try {
-        // Apri il documento PDF
-        PdfMemDocument document;
-        document.Load(inputFile.c_str());
-        
-        std::cout << "PDF caricato. Numero di pagine: " << document.GetPageCount() << std::endl;
-
-        // Ottieni o crea l'AcroForm
-        PdfAcroForm* acroForm = document.GetAcroForm(true, ePdfAcroFormDefaultAppearance_BlackText12pt);
-
-        std::vector<TextInfo> foundTexts;
-        PdfPage* targetPage = nullptr;
-        int targetPageNum = -1;
-
-        // Scorri tutte le pagine
-        for (int pageNum = 0; pageNum < document.GetPageCount(); ++pageNum) {
-            PdfPage* page = document.GetPage(pageNum);
-            
-            if (debugMode) {
-                PdfRect pageSize = page->GetPageSize();
-                std::cout << "\nPagina " << pageNum + 1 << " - Dimensioni: " 
-                          << pageSize.GetWidth() << "x" << pageSize.GetHeight() << std::endl;
-            }
-            
-            if (searchTextInPage(page, pageNum, searchString, foundTexts, debugMode)) {
-                if (targetPageNum == -1) {
-                    targetPage = page;
-                    targetPageNum = pageNum;
-                }
-            }
-        }
-
-        if (foundTexts.empty()) {
-            std::cout << "\nStringa '" << searchString << "' non trovata nel documento." << std::endl;
-            std::cout << "Suggerimenti:" << std::endl;
-            std::cout << "1. Verifica che la stringa sia scritta esattamente come nel PDF" << std::endl;
-            std::cout << "2. Prova con una parola singola" << std::endl;
-            std::cout << "3. Usa il parametro 'debug' per vedere tutto il testo estratto" << std::endl;
-            return 1;
-        }
-
-        std::cout << "\n=== RISULTATI RICERCA ===" << std::endl;
-        std::cout << "Trovate " << foundTexts.size() << " occorrenze:" << std::endl;
-        for (size_t i = 0; i < foundTexts.size(); ++i) {
-            std::cout << i + 1 << ". Pagina " << foundTexts[i].pageNum + 1 
-                      << ": '" << foundTexts[i].text << "'" << std::endl;
-        }
-
-        // Usa la prima occorrenza trovata
-        std::cout << "\nCreazione campo di firma sulla pagina " << targetPageNum + 1 << std::endl;
-
-        // Calcola posizione del campo (più intelligente)
-        PdfRect pageRect = targetPage->GetPageSize();
-        double fieldWidth = 150;
-        double fieldHeight = 40;
-        
-        // Posiziona il campo in basso a destra per default
-        double fieldX = pageRect.GetWidth() - fieldWidth - 50;
-        double fieldY = 50; // Dal basso
-        
-        PdfRect fieldRect(fieldX, fieldY, fieldWidth, fieldHeight);
-        
-        std::cout << "Posizione campo: x=" << fieldX << ", y=" << fieldY 
-                  << ", w=" << fieldWidth << ", h=" << fieldHeight << std::endl;
-
-        // Crea il campo di firma
-        PdfPushButton* signatureField = new PdfPushButton(targetPage, fieldRect, &document);
-        
-        // Configura il campo come campo di firma
-        PdfObject* fieldObj = signatureField->GetFieldObject();
-        fieldObj->GetDictionary().AddKey("FT", PdfName("Sig"));
-        fieldObj->GetDictionary().AddKey("T", PdfString(fieldName));
-        
-        // Aggiungi il campo all'AcroForm
-        PdfArray fieldsArray;
-        if (acroForm->GetObject()->GetDictionary().HasKey("Fields")) {
-            fieldsArray = acroForm->GetObject()->GetDictionary().GetKey("Fields")->GetArray();
-        }
-        fieldsArray.push_back(fieldObj->Reference());
-        acroForm->GetObject()->GetDictionary().AddKey("Fields", fieldsArray);
-
-        // Configura l'aspetto del campo
-        PdfAnnotation* annotation = signatureField->GetWidgetAnnotation();
-        if (annotation) {
-            // Bordo del campo
-            PdfArray borderArray;
-            borderArray.push_back(PdfVariant(static_cast<pdf_int64>(0)));
-            borderArray.push_back(PdfVariant(static_cast<pdf_int64>(0)));
-            borderArray.push_back(PdfVariant(static_cast<pdf_int64>(1)));
-            annotation->GetObject()->GetDictionary().AddKey("Border", borderArray);
-            
-            // Imposta il tipo di annotazione
-            annotation->GetObject()->GetDictionary().AddKey("Subtype", PdfName("Widget"));
-            
-            // Aggiungi testo di placeholder
-            annotation->GetObject()->GetDictionary().AddKey("DA", PdfString("/Helv 12 Tf 0 g"));
-            annotation->GetObject()->GetDictionary().AddKey("AP", PdfString("Clicca per firmare"));
-        }
-
-        // Salva il documento modificato
-        PdfOutputDevice outputDevice(outputFile.c_str());
-        document.Write(&outputDevice);
-        
-        std::cout << "\n=== COMPLETATO ===" << std::endl;
-        std::cout << "Campo di firma '" << fieldName << "' aggiunto con successo!" << std::endl;
-        std::cout << "File salvato come: " << outputFile << std::endl;
-        std::cout << "Il campo si trova nella pagina " << targetPageNum + 1 
-                  << " in basso a destra." << std::endl;
-
-    } catch (const PdfError& error) {
-        std::cerr << "Errore libpodofo: " << error.GetError() << " - " << error.what() << std::endl;
-        return 1;
-    } catch (const std::exception& ex) {
-        std::cerr << "Errore: " << ex.what() << std::endl;
-        return 1;
-    }
-
-    return 0;
+    PoDoFo::PdfOutputDevice output(outputFile.c_str());
+    doc.Write(&output);
+    std::cout << "Campo firma '" << fieldName << "' aggiunto con successo!\n";
+    std::cout << "File salvato come: " << outputFile << "\n";
+  } catch (const PoDoFo::PdfError& e) {
+    std::cerr << "Errore PDF: " << e.what() << "\n";
+    return 1;
+  } catch (const std::exception& e) {
+    std::cerr << "Errore: " << e.what() << "\n";
+    return 1;
+  }
+  return 0;
 }
