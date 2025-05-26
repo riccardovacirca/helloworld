@@ -8,15 +8,15 @@ if [ -z "$1" ]; then option="default"; else option="${1#--}"; fi
 source .env
 # ------------------------------------------------------------------------------
 if ! docker network ls --format '{{.Name}}' | grep -q "^${SERVICE_NETWORK}$"; then
-docker network create "${SERVICE_NETWORK}"
+  docker network create "${SERVICE_NETWORK}"
 fi
 # ------------------------------------------------------------------------------
 docker pull ubuntu:latest
 # ------------------------------------------------------------------------------
 docker run -dit --name $SERVICE_NAME --network $SERVICE_NETWORK \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$(pwd):/$SERVICE_NAME" -p $SERVICE_PORT:2310 -p $SERVICE_TLS_PORT:2343 \
-  -p $SERVICE_WS_PORT:2388 ubuntu:latest
+  -v "$(pwd):/$SERVICE_NAME" -p $SERVICE_PORT:2310 -p $SERVICE_TLS_PORT:2443 \
+  -p $SERVICE_WS_PORT:2791 ubuntu:latest
 # ------------------------------------------------------------------------------
 docker start $SERVICE_NAME
 # ------------------------------------------------------------------------------
@@ -27,30 +27,50 @@ docker exec -i $SERVICE_NAME bash -c "\
   apt-get update && apt-get install -y tzdata && \
   dpkg-reconfigure -f noninteractive tzdata" && echo "Timezone installato."
 # ------------------------------------------------------------------------------
+# docker exec -i $SERVICE_NAME bash -c "\
+#   apt-get update && apt-get install -y --no-install-recommends \
+#   apt-utils nano clang make curl git python3 \
+#   autoconf libtool-bin libexpat1-dev cmake libssl-dev libmariadb-dev libpq-dev \
+#   libsqlite3-dev unixodbc-dev libapr1-dev libaprutil1-dev libaprutil1-dbd-mysql \
+#   libaprutil1-dbd-pgsql libaprutil1-dbd-sqlite3 libjson-c-dev siege \
+#   valgrind doxygen graphviz nlohmann-json3-dev libgtest-dev apt-file docker.io \
+#   gdb ca-certificates mysql-client && apt-get autoremove && apt-get clean \
+#   && rm -rf /var/lib/apt/lists/*" && echo "Dev packages installed."
 docker exec -i $SERVICE_NAME bash -c "\
   apt-get update && apt-get install -y --no-install-recommends \
-  apt-utils nano clang make curl git python3 \
-  autoconf libtool-bin libexpat1-dev cmake libssl-dev libmariadb-dev libpq-dev \
-  libsqlite3-dev unixodbc-dev libapr1-dev libaprutil1-dev libaprutil1-dbd-mysql \
-  libaprutil1-dbd-pgsql libaprutil1-dbd-sqlite3 libjson-c-dev libjwt-dev siege \
-  valgrind doxygen graphviz nlohmann-json3-dev libgtest-dev apt-file docker.io \
-  gdb ca-certificates mysql-client && apt-get autoremove && apt-get clean \
+  nano clang make curl git python3 \
+  libssl-dev libsqlite3-dev libapr1-dev libaprutil1-dev libaprutil1-dbd-mysql \
+  libaprutil1-dbd-pgsql libaprutil1-dbd-sqlite3 libjson-c-dev siege \
+  valgrind gdb ca-certificates && apt-get autoremove && apt-get clean \
   && rm -rf /var/lib/apt/lists/*" && echo "Dev packages installed."
 # ------------------------------------------------------------------------------
-docker exec -i $SERVICE_NAME bash -c "\
-  cd $SERVICE_NAME \
-  && git clone https://github.com/riccardovacirca/microservice.git microservice" \
-  && echo "Microservice installed."
+if [ ! -d "microservice" ]; then
+  docker exec -i $SERVICE_NAME bash -c "\
+    cd $SERVICE_NAME \
+    && git clone https://github.com/riccardovacirca/microservice.git" \
+    && echo "Microservice installed."
+fi
 # ------------------------------------------------------------------------------
-docker exec -i $SERVICE_NAME bash -c "\
-  cd $SERVICE_NAME \
-  && git clone https://github.com/riccardovacirca/mongoose.git mongoose \
-  && rm -rf mongoose/.git" && echo "Mongoose installed."
+if [ ! -d "microtools" ]; then
+  docker exec -i $SERVICE_NAME bash -c "\
+    cd $SERVICE_NAME \
+    && git clone https://github.com/riccardovacirca/microtools.git" \
+    && echo "Microtools installed."
+fi
 # ------------------------------------------------------------------------------
-docker exec -i $SERVICE_NAME bash -c "\
-  cd $SERVICE_NAME \
-  && git clone https://github.com/riccardovacirca/Unity.git unity \
-  && rm -rf unity/.git" && echo "Unity installed."
+if [ ! -d "mongoose" ]; then
+  docker exec -i $SERVICE_NAME bash -c "\
+    cd $SERVICE_NAME \
+    && git clone https://github.com/riccardovacirca/mongoose.git \
+    && rm -rf mongoose/.git" && echo "Mongoose installed."
+fi
+# ------------------------------------------------------------------------------
+if [ ! -d "unity" ]; then
+  docker exec -i $SERVICE_NAME bash -c "\
+    cd $SERVICE_NAME \
+    && git clone https://github.com/riccardovacirca/Unity.git unity \
+    && rm -rf unity/.git" && echo "Unity installed."
+fi
 # ------------------------------------------------------------------------------
 docker exec -i $SERVICE_NAME bash -c "\
   cd $SERVICE_NAME \
@@ -66,16 +86,12 @@ docker exec -i $SERVICE_NAME bash -c "\
   locale;"
 # ------------------------------------------------------------------------------
 docker pull mariadb:latest
+# ------------------------------------------------------------------------------
 docker run -d --name mariadb --network $SERVICE_NETWORK \
   -e MARIADB_ROOT_PASSWORD=$DB_ROOT_PASSWORD -p 3306:3306 \
   mariadb:latest
-docker start mariadb
 # ------------------------------------------------------------------------------
-docker exec -i mariadb bash -c "\
-  mysql -h 127.0.0.1 -uroot -p$DB_ROOT_PASSWORD -e \" \
-  GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' \
-  IDENTIFIED BY '$DB_ROOT_PASSWORD' WITH GRANT OPTION; \
-  FLUSH PRIVILEGES;\"  2>/dev/null " && echo "Root privileges installed."
+docker start mariadb
 # ------------------------------------------------------------------------------
 docker exec -i mariadb bash -c "\
   apt-get update && apt-get install -y --no-install-recommends \
@@ -83,15 +99,23 @@ docker exec -i mariadb bash -c "\
   && rm -rf /var/lib/apt/lists/*"
 # ------------------------------------------------------------------------------
 docker exec -i mariadb bash -c "\
-  mysql -h 127.0.0.1 -uroot -p$DB_ROOT_PASSWORD -e \"
+  mysql -e \" \
+  GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' \
+  IDENTIFIED BY '$DB_ROOT_PASSWORD' WITH GRANT OPTION; \
+  FLUSH PRIVILEGES;\"  2>/dev/null " && echo "Root privileges installed."
+# ------------------------------------------------------------------------------
+docker exec -i mariadb bash -c "\
+  mysql -e \"
   CREATE DATABASE IF NOT EXISTS $SERVICE_NAME;
-  CREATE USER IF NOT EXISTS '$SERVICE_NAME'@'%' \
-  IDENTIFIED BY '$DB_PASSWORD';
+  CREATE USER IF NOT EXISTS '$SERVICE_NAME'@'%' IDENTIFIED BY '$DB_PASSWORD';
   GRANT ALL PRIVILEGES ON $SERVICE_NAME.* \
   TO '$SERVICE_NAME'@'%' WITH GRANT OPTION;
   FLUSH PRIVILEGES;\""
 # ------------------------------------------------------------------------------
 docker exec -i $SERVICE_NAME bash -c "\
-  echo \"alias cls='clear'\" >> /etc/bash.bashrc && source /etc/bash.bashrc"
+  command -v cls >/dev/null 2>&1 || { \
+    echo \"alias cls='clear'\" >> /etc/bash.bashrc \
+    && source /etc/bash.bashrc; \
+  }"
 # ------------------------------------------------------------------------------
 exit 0

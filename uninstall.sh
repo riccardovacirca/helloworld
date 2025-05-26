@@ -7,18 +7,6 @@ if [ "$EUID" -ne 0 ]; then echo "Esegui lo script con sudo o come root."; exit 1
 # ------------------------------------------------------------------------------
 source .env
 # ------------------------------------------------------------------------------
-rm -rf mongoose && echo "Mongoose rimosso."
-# ------------------------------------------------------------------------------
-rm -rf unity && echo "Unity rimosso."
-# ------------------------------------------------------------------------------
-rm -rf microservice && echo "microservice rimosso."
-# ------------------------------------------------------------------------------
-rm -rf bin && echo "Directory bin rimossa."
-# ------------------------------------------------------------------------------
-rm -rf tmp && echo "Directory tmp rimossa."
-# ------------------------------------------------------------------------------
-rm -rf .github && echo "Directory .github rimossa."
-# ------------------------------------------------------------------------------
 echo "Arresto il container $SERVICE_NAME..." \
   && docker stop $SERVICE_NAME && docker rm $SERVICE_NAME \
   && echo "Container $SERVICE_NAME rimosso."
