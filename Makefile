@@ -16,11 +16,10 @@
 # <https://www.gnu.org/licenses/>.
 
 CC:=clang
-CXX:=clang++
 CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
-CXXFLAGS:=-std=c++11 -g -DM_DEBUG
-INCLUDES:=-I. -I./mongoose -I./microservice -I./microservice/microtools -I./unity -I/usr/include -I/usr/include/apr-1.0
-LDFLAGS:=-lapr-1 -laprutil-1
+INCLUDES:=-I. -I./mongoose -I./microservice -I./microtools -I./unity -I/usr/include -I/usr/include/apr-1.0
+LIBS:=-L./microtools
+LDFLAGS:=-lapr-1 -laprutil-1 -lmicrotools
 
 NAME:=helloworld
 OBJS:=mongoose.o fs.o $(NAME).o microservice.o
@@ -30,13 +29,13 @@ all: $(NAME)
 
 $(NAME): $(OBJS)
 	@mkdir -p bin
-	$(CXX) -o bin/$(NAME) $(OBJS) -L./microtools -lmicrotools $(LDFLAGS) -lstdc++
+	$(CC) -o bin/$(NAME) $(OBJS) $(LIBS) $(LDFLAGS)
 
 mongoose.o: mongoose.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c mongoose/$< -o $@
 
-$(NAME).o: $(NAME).cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+$(NAME).o: $(NAME).c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 microservice.o: microservice.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c microservice/$< -o $@

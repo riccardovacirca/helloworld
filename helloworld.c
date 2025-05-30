@@ -23,9 +23,10 @@
 #include "apr_strings.h"
 #include "apr_tables.h"
 #include "apr_hash.h"
+#include "microtools.h"
 #include "microservice.h"
 
-extern "C" void ping(apr_pool_t *mp, m_str_t *prm, m_str_t **res) {
+void ping(apr_pool_t *mp, m_str_t *prm, m_str_t **res) {
   *res = m_str(mp, "pong!!!", 7);
 }
 
@@ -33,21 +34,21 @@ void m_rpc_register(m_server_t *srv) {
   m_rpc_bind(srv, "ping", ping);
 }
 
-extern "C" int PingRPC_Stub(m_service_t *svc, const char *uri) {
+int PingRPC_Stub(m_service_t *svc, const char *uri) {
   return m_rpc_send(svc, uri, "pong", "{\"id\":1001,\"method\":\"ping\",\"params\":[\"hello\",2.1,3,false]}");
 }
 
-extern "C" void m_router_rpc(m_service_t *svc) {
+void m_router_rpc(m_service_t *svc) {
   m_route_rpc(svc, M_HTTP_GET, "/api/ping", "ws://localhost:2380/ws", PingRPC_Stub);
 }
 
-extern "C" int PingRequestHandler(m_service_t *svc) {
+int PingRequestHandler(m_service_t *svc) {
   m_str_t *msg = (m_str_t*)apr_hash_get(svc->request->rpc_args, "pong", APR_HASH_KEY_STRING);
   m_response_header_set(svc, "Content-Type", "text/plain");
   m_response_buffer_set(svc, msg, msg->len);
   return 200;
 }
 
-extern "C" void m_router_http(m_service_t *svc) {
+void m_router_http(m_service_t *svc) {
   m_route_http(svc, M_HTTP_GET, "/api/ping", PingRequestHandler);
 }
