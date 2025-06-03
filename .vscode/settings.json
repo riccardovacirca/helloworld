@@ -12,6 +12,7 @@
     "valarray": "c",
     "apr_general.h": "c",
     "apr_file_io.h": "c",
-    "random": "c"
+    "random": "c",
+    "podofoc.h": "c"
   }
 }
