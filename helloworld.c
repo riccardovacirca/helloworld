@@ -23,8 +23,8 @@
 #include "apr_strings.h"
 #include "apr_tables.h"
 #include "apr_hash.h"
-#include "microtools.h"
 #include "microservice.h"
+#include "microtools.h"
 
 void ping(apr_pool_t *mp, m_str_t *prm, m_str_t **res) {
   *res = m_str(mp, "\"pong!!!\"", 9);
