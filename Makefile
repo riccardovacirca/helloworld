@@ -47,14 +47,14 @@ fs.c:
 	mkdir -p ./bin && rm -rf /tmp/fs && mkdir -p /tmp/fs; \
 	gzip -c /$(NAME)/microtools/microtools.js > /tmp/fs/microtools.js.gz; \
 	gzip -c /$(NAME)/microtools/microtools.css > /tmp/fs/microtools.css.gz; \
-	gzip -c /$(NAME)/index.html > /tmp/fs/index.html.gz; \
+	gzip -c /$(NAME)/test.html > /tmp/fs/test.html.gz; \
 	clang -o /$(NAME)/bin/pack /$(NAME)/mongoose/test/pack.c && \
 	cd /tmp && /$(NAME)/bin/pack fs/* > /$(NAME)/fs.c && \
 	rm -rf fs && cd /$(NAME) && rm /$(NAME)/bin/pack
 
 run:
 	LD_LIBRARY_PATH=./microtools:$LD_LIBRARY_PATH \
-	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2380" -r "1000" -t "1000" -T 10 \
+	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2791" -r "500" -t "100" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=$(NAME),dbname=$(NAME)"
 
