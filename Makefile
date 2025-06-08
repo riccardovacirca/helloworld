@@ -16,10 +16,12 @@
 # <https://www.gnu.org/licenses/>.
 
 CC:=clang
-CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS
-INCLUDES:=-I. -I./mongoose -I./microservice -I./microtools -I./unity -I/usr/include -I/usr/include/apr-1.0
-LIBS:=-L./microtools
-LDFLAGS:=-lapr-1 -laprutil-1 -lmicrotools
+CFLAGS:=-std=gnu11 -g -DM_DEBUG -DMG_ENABLE_PACKED_FS=1 -DM_FS -DMICROTOOLS
+INCLUDES:=-I. -I./mongoose -I./microservice -I./microtools -I./unity \
+	-I/usr/include -I/usr/include/apr-1.0
+LIBS:=-L/helloworld/microtools
+LDFLAGS:=-lmicrotools -lapr-1 -laprutil-1 -Wl,-rpath,/helloworld/microtools \
+	-Wl,--export-dynamic -Wl,-z,lazy
 
 NAME:=helloworld
 OBJS:=mongoose.o fs.o $(NAME).o microservice.o
@@ -53,7 +55,7 @@ fs.c:
 	rm -rf fs && cd /$(NAME) && rm /$(NAME)/bin/pack
 
 run:
-	LD_LIBRARY_PATH=./microtools:$LD_LIBRARY_PATH \
+	LD_LIBRARY_PATH=/helloworld/microtools:$LD_LIBRARY_PATH \
 	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2791" -r "500" -t "100" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
 	-D "host=mariadb,port=3306,user=$(NAME),pass=$(NAME),dbname=$(NAME)"

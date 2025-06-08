@@ -23,14 +23,14 @@
 #include "apr_strings.h"
 #include "apr_tables.h"
 #include "apr_hash.h"
+
 #include "microservice.h"
-#include "microtools.h"
 
 void ping(apr_pool_t *mp, m_str_t *prm, m_str_t **res) {
   *res = m_str(mp, "\"pong!!!\"", 9);
 }
 
-void m_rpc_register(m_server_t *srv) {
+void m_rpc_register(m_mg_server_t *srv) {
   m_rpc_bind(srv, "ping", ping);
 }
 
@@ -43,7 +43,7 @@ void m_router_rpc(m_service_t *svc) {
 }
 
 int PingRequestHandler(m_service_t *svc) {
-  m_str_t *msg = (m_str_t*)apr_hash_get(svc->request->rpc_args, "pong", APR_HASH_KEY_STRING);
+  m_str_t *msg = (m_str_t*)apr_hash_get(svc->request->rpc, "pong", APR_HASH_KEY_STRING);
   m_response_header_set(svc, "Content-Type", "text/plain");
   m_response_buffer_set(svc, msg->buf, msg->len);
   return 200;
@@ -51,8 +51,11 @@ int PingRequestHandler(m_service_t *svc) {
 
 int PostRequestHandler(m_service_t *svc) {
   m_str_t *msg = m_str(svc->pool, "HELLO", 5);
-  if (svc->request->body_args) {
-    const char *title = apr_table_get(svc->request->body_args, "title");
+  
+  if (svc->request->parsed_body) {
+    apr_hash_t *args = (apr_hash_t*)svc->request->parsed_body;
+    //m_str_t *title = (m_str_t*)apr_hash_get(args, "title", APR_HASH_KEY_STRING);
+    const char* title = (const char*)apr_hash_get(args, "title", APR_HASH_KEY_STRING);
     if (title) {
       printf("\n\nTITLE: %s\n\n", title);
     }
