@@ -58,7 +58,7 @@ run:
 	LD_LIBRARY_PATH=/helloworld/microtools:$LD_LIBRARY_PATH \
 	bin/$(NAME) -h "0.0.0.0" -p "2310" -w "2791" -r "500" -t "100" -T 10 \
 	-l "/var/log/$(NAME).log" -s 10 -d "mysql" \
-	-D "host=mariadb,port=3306,user=$(NAME),pass=$(NAME),dbname=$(NAME)"
+	-D "host=olodb,port=3306,user=$(NAME),pass=secret,dbname=$(NAME)"
 
 debug:
 	gdb bin/$(NAME) core
