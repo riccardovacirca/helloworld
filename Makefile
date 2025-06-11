@@ -49,7 +49,7 @@ fs.c:
 	mkdir -p ./bin && rm -rf /tmp/fs && mkdir -p /tmp/fs; \
 	gzip -c /$(NAME)/microtools/microtools.js > /tmp/fs/microtools.js.gz; \
 	gzip -c /$(NAME)/microtools/microtools.css > /tmp/fs/microtools.css.gz; \
-	gzip -c /$(NAME)/test.html > /tmp/fs/test.html.gz; \
+	gzip -c /$(NAME)/microtools/helloworld.html > /tmp/fs/helloworld.html.gz; \
 	clang -o /$(NAME)/bin/pack /$(NAME)/mongoose/test/pack.c && \
 	cd /tmp && /$(NAME)/bin/pack fs/* > /$(NAME)/fs.c && \
 	rm -rf fs && cd /$(NAME) && rm /$(NAME)/bin/pack
